@@ -54,7 +54,7 @@ player_image = pygame.image.load("Player.png").convert_alpha()
 player_diameter = int(player_shape.radius * 2)
 player_image = pygame.transform.scale(player_image, (player_diameter, player_diameter))
 battleui_image = pygame.image.load("ui.png").convert_alpha()
-battleui_image = pygame.transform.scale(battleui_image, 100 * screenmult, 800 * screenmult)
+battleui_image = pygame.transform.scale(battleui_image, 600 * screenmult, 200 * screenmult)
 button_image = pygame.image.load("button.png").convert_alpha()
 button_image = pygame.transform.scale(button_image, 25 * screenmult, 50 * screenmult)
 
@@ -70,12 +70,13 @@ class creature: # general species
 		self.front = frontsprite
 
 class move: # general move // WILL ADD ANIMATION
-	def __init__(self, type, BP, accuracy, targeting, category):
+	def __init__(self, type, BP, accuracy, targeting, category, priority=0):
 		self.type = type
 		self.bp = BP
 		self.accuracy = accuracy
 		self.targeting = targeting
 		self.category = category
+		self.priority = priority
 
 species = { # will add more, currently just placeholders
 	"Rattata": creature(["Normal"], 30, 56, 35, 25, 35, 72, rattata),
@@ -88,14 +89,13 @@ moves = {
 }
 
 class mon: # specific instance of creature
-	def __init__(self, species, name, level, current_type, stat_mods, CHP, ID, moves): # will add EV, IV, condition, item, moves, etc. later
+	def __init__(self, species, name, level, current_type, stat_mods, CHP, moves): # will add EV, IV, condition, item, moves, etc. later
 		self.species = species
 		self.name = name
 		self.level = level
 		self.current_type = current_type
 		self.stat_mods = stat_mods
 		self.chp = CHP
-		self.ID = ID
 		self.moves = moves
 
 	def to_dict(self):
@@ -130,7 +130,7 @@ typechart = [ # currently set for pokemon, will change
 
 
 if debug: # makes sure the player has a mon before starter selection is complete
-	current_game_state["mons"][0] = mon("Hissuian Zoroark", "Boo", 10, ["Normal", "Ghost"], [0,0,0,0,0], 55, 0, ["Tackle", "Earthquake", "", ""])
+	current_game_state["mons"][0] = mon("Hissuian Zoroark", "Boo", 10, ["Normal", "Ghost"], [0,0,0,0,0], 55, ["Tackle", "Earthquake", "", ""])
 
 walls = [ # numbers are (starting coord), (ending coord), thickness
 	pymunk.Segment(space.static_body, (100, 100), (700, 100), 20 * screenmult)
@@ -149,7 +149,7 @@ bushzones = [
 ]
 
 spawnzones = {
-	"route_1": ["Rattata"]
+	"route_1": [["Rattata"], 1, 5]
 }
 
 class btn:
@@ -175,10 +175,10 @@ class btn:
 
 
 buttons = {
-	"battle_attack": btn(500,525,50,25,"Attack"),
-	"battle_bag": btn(600,525,50,25,"Bag"),
-	"battle_mons": btn(500,560,50,25,"Mons"),
-	"battle_run": btn(600,560,50,25,"Coward")
+	"battle_attack": btn(10,400,75,75,"Attack"),
+	"battle_bag": btn(115,400,75,75,"Bag"),
+	"battle_mons": btn(10,505,75,75,"Mons"),
+	"battle_run": btn(115,505,75,75,"Coward")
 }
 
 for wall in walls:
@@ -312,22 +312,25 @@ def battle(enemy, type):
 				playerside.append(i)
 	while True:
 		screen.blit(battlebackground_image, (0,0))
-		if type == "doubles":
-			screen.blit(species[enemyside[0].species].front,(450,25))
-			screen.blit(species[enemyside[1].species].front,(550,75))
-			screen.blit(species[playerside[1].species].front,(150,350))
-			screen.blit(species[playerside[0].species].front,(50,300))
+		if type == "doubles": # adds pokemon to area as needed
+			screen.blit(pygame.transform.scale(species[enemyside[0].species].front,(170,170)),(400,50))
+			screen.blit(pygame.transform.scale(species[enemyside[1].species].front,(170,170)),(520,100))
+			screen.blit(pygame.transform.scale(species[playerside[0].species].front,(225,225)),(210,350))
+			screen.blit(pygame.transform.scale(species[playerside[1].species].front,(225,225)),(330,400))
 		else:
 			screen.blit(species[playerside[0].species].front,(100,300))
 			screen.blit(species[enemyside[0].species].front,(500,50))
 		btnstate = "MAIN"
 		mon = 0
+		moves = [["",[0], 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both), move slot (if use), priority
 		while True: # ^^ before turn, VV after turn, this is during turn select
+			if mon == 2:
+				break
 			if btnstate not in ["BAG", "MONS"]:
-				screen.blit(battleui_image,(0,500))
+				screen.blit(battleui_image,(0,0))
 			match btnstate:
 				case "MAIN":
-					trect = pygame.Rect(30,510,270,70)
+					trect = pygame.Rect(10,10,180,350)
 					tsurface = font.render(f"What will {playerside[mon].name} do?", True, (0,0,0))
 					screen.blit(tsurface,trect)
 					for b in ["battle_attack","battle_bag","battle_mons","battle_run"]:
@@ -337,20 +340,35 @@ def battle(enemy, type):
 							if event.button == 1:
 								if buttons["battle_attack"].is_clicked(event.pos):
 									btnstate = "ATTACK"
+									break
 								elif buttons["battle_bag"].is_clicked(event.pos):
 									btnstate = "BAG"
+									break
 								elif buttons["battle_mons"].is_clicked(event.pos):
 									btnstate = "MONS"
+									break
 								elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
 									return "OVERWORLD"
 				case "ATTACK":
 					abtns = [
-						btn(10, 510, 150, 25, playerside[mon].moves[0]),
-						btn(10, 550, 150, 25, playerside[mon].moves[1]),
-						btn(200, 510, 150, 25, playerside[mon].moves[2]),
-						btn(200, 550, 150, 25, playerside[mon].moves[3]),
-						btn(380, 510, 200, 150, "exit")
+						btn(10, 10, 180, 120, playerside[mon].moves[0]),
+						btn(10, 140, 180, 120, playerside[mon].moves[1]),
+						btn(10, 270, 180, 120, playerside[mon].moves[2]),
+						btn(10, 400, 180, 120, playerside[mon].moves[3]),
+						btn(10, 540, 180, 60, "exit")
 					]
+					for event in pygame.event.get():
+						if event.type == pygame.MOUSEBUTTONDOWN:
+							if event.button == 1:
+								if abtns[0].is_clicked(event.pos):
+									moves[mon] = ["use",[],1,playerside[mon].moves[0].priority]
+									mon += 1
+									break
+								if abtns[1].is_clicked(event.pos):
+									mon += 1
+									break
+								if abtns[2].is_clicked(event.pos):
+									mon += 1
 		any = False
 		if len(enemyside) > 0:
 			for mon in enemyside:
@@ -368,7 +386,7 @@ def battle(enemy, type):
 			return "OVERWORLD"
 
 def main():
-	global state, current_game_state
+	global state, current_game_state, usedIDs
 	running = True
 	encounter = []
 	safe = safenumber()
@@ -414,10 +432,12 @@ def main():
 				if safe <= 0:
 					current_bush = bushzones[hit_index]
 					version = "singles"
-					if random.random() < 0.750:
-						encounter.append(random.choice(spawnzones[current_bush.pool]))
+					if random.random() < 0.750: # These movesets have not been defined
+						enemy = random.choice(spawnzones[current_bush.pool][0])
+						encounter.append(mon(species[enemy], enemy, random.randint(current_bush.pool[1], current_bush.pool[2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
 						version = "doubles"
-					encounter.append(random.choice(spawnzones[current_bush.pool]))
+					enemy = random.choice(spawnzones[current_bush.pool][0])
+					encounter.append(mon(species[enemy], enemy, random.randint(current_bush.pool[1], current_bush.pool[2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
 					state = "BATTLE"
 					safe = safenumber()
 			space.step(1 / FPS)
