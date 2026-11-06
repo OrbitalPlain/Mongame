@@ -54,12 +54,12 @@ player_image = pygame.image.load("Player.png").convert_alpha()
 player_diameter = int(player_shape.radius * 2)
 player_image = pygame.transform.scale(player_image, (player_diameter, player_diameter))
 battleui_image = pygame.image.load("ui.png").convert_alpha()
-battleui_image = pygame.transform.scale(battleui_image, 600 * screenmult, 200 * screenmult)
+battleui_image = pygame.transform.scale(battleui_image, (600 * screenmult, 200 * screenmult))
 button_image = pygame.image.load("button.png").convert_alpha()
-button_image = pygame.transform.scale(button_image, 25 * screenmult, 50 * screenmult)
+button_image = pygame.transform.scale(button_image, (25 * screenmult, 50 * screenmult))
 
 class creature: # general species
-	def __init__(self, type, MHP, Atk, Def, SpA, SpD, Speed, frontsprite): # will add learnset, XP requirement, spawn position, ability, etc. later
+	def __init__(self, type, MHP, Atk, Def, SpA, SpD, Speed, frontsprite=None): # will add learnset, XP requirement, spawn position, ability, etc. later
 		self.type = type
 		self.mhp = MHP
 		self.Atk = Atk
@@ -74,11 +74,12 @@ class move: # general move // WILL ADD ANIMATION
 		self.type = type
 		self.bp = BP
 		self.accuracy = accuracy
-		self.targeting = targeting
+		self.targeting = targeting # one, all, both
 		self.category = category
 		self.priority = priority
 
 species = { # will add more, currently just placeholders
+	"Empty": creature(["None"],0,0,0,0,0,0),
 	"Rattata": creature(["Normal"], 30, 56, 35, 25, 35, 72, rattata),
 	"Hisuian Zoroark": creature(["Normal", "Ghost"], 55, 100, 60, 125, 60, 110, hisuian_zoroark)
 }
@@ -130,7 +131,7 @@ typechart = [ # currently set for pokemon, will change
 
 
 if debug: # makes sure the player has a mon before starter selection is complete
-	current_game_state["mons"][0] = mon("Hissuian Zoroark", "Boo", 10, ["Normal", "Ghost"], [0,0,0,0,0], 55, ["Tackle", "Earthquake", "", ""])
+	current_game_state["mons"].append(mon("Hisuian Zoroark", "Boo", 10, ["Normal", "Ghost"], [0,0,0,0,0], 55, ["Tackle", "Earthquake", "", ""]))
 
 walls = [ # numbers are (starting coord), (ending coord), thickness
 	pymunk.Segment(space.static_body, (100, 100), (700, 100), 20 * screenmult)
@@ -239,7 +240,7 @@ def find(f):
 	m = []
 	for i in f:
 		match i:
-			case "Typeless":
+			case "None":
 				m.append(0)
 			case "Normal":
 				m.append(1)
@@ -302,12 +303,13 @@ def battle(enemy, type):
 	if type == "doubles":
 		enemyside.append(enemy[1])
 		for i in current_game_state["mons"]:
-			if i.CHP > 0:
+			if i.chp > 0:
 				playerside.append(i)
 				break
 	enemyside.append(enemy[0])
+	print(current_game_state["mons"])
 	for i in current_game_state["mons"]:
-		if i.CHP > 0:
+		if i.chp > 0:
 			if i not in playerside:
 				playerside.append(i)
 	while True:
@@ -322,9 +324,13 @@ def battle(enemy, type):
 			screen.blit(species[enemyside[0].species].front,(500,50))
 		btnstate = "MAIN"
 		mon = 0
-		moves = [["",[0], 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both), move slot (if use), priority
+		if type == "doubles":
+			lim = 2
+		else:
+			lim = 1
+		usedmoves = [["",[0], 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move slot (if use), priority
 		while True: # ^^ before turn, VV after turn, this is during turn select
-			if mon == 2:
+			if mon == lim:
 				break
 			if btnstate not in ["BAG", "MONS"]:
 				screen.blit(battleui_image,(0,0))
@@ -350,6 +356,7 @@ def battle(enemy, type):
 								elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
 									return "OVERWORLD"
 				case "ATTACK":
+					move = ""
 					abtns = [
 						btn(10, 10, 180, 120, playerside[mon].moves[0]),
 						btn(10, 140, 180, 120, playerside[mon].moves[1]),
@@ -357,32 +364,74 @@ def battle(enemy, type):
 						btn(10, 400, 180, 120, playerside[mon].moves[3]),
 						btn(10, 540, 180, 60, "exit")
 					]
+					for b in abtns:
+						b.draw(screen)
 					for event in pygame.event.get():
 						if event.type == pygame.MOUSEBUTTONDOWN:
 							if event.button == 1:
 								if abtns[0].is_clicked(event.pos):
-									moves[mon] = ["use",[],1,playerside[mon].moves[0].priority]
-									mon += 1
-									break
+									if playerside[mon].moves[0] != "":
+										move = 0
 								if abtns[1].is_clicked(event.pos):
-									mon += 1
-									break
+									if playerside[mon].moves[1] != "":
+										move = 1
 								if abtns[2].is_clicked(event.pos):
-									mon += 1
-		any = False
+									if playerside[mon].moves[2] != "":
+										move = 2
+								if abtns[3].is_clicked(event.pos):
+									if playerside[mon].moves[3] != "":
+										move = 3
+								if abtns[4].is_clicked(event.pos):
+									btnstate = "MAIN"
+					if btnstate != "MAIN" and move != "":
+						if playerside[move].targeting == "all":
+							usedmoves[mon] = ["use","all",move,moves[playerside[mon].moves[move]].priority]
+						elif playerside[move].targeting == "both":
+							usedmoves[mon] = ["use","both",move,moves[playerside[mon].moves[move]].priority]
+						elif type == "doubles":
+							btnstate = "TARGET"
+						else:
+							usedmoves[mon] = ["use","both",move,moves[playerside[mon].moves[move]].priority]
+				case "TARGET":
+					tarbtns = [
+						btn(10,200,85,60,"enemy 1"),
+						btn(105,200,85,60,"enemy 2"),
+						btn(50,270,100,60, "ally"),
+						btn(10,350,180,60,"back")
+					]
+					trect = pygame.Rect(10,10,180,180)
+					tsurface = font.render("Which mon is being targeted?", True, (0,0,0))
+					screen.blit(tsurface,trect)
+					for b in tarbtns:
+						b.draw(screen)
+					for event in pygame.event.get():
+						if event.type == pygame.MOUSEBUTTONDOWN:
+							if event.button == 1:
+								if tarbtns[3].is_clicked(event.pos):
+									btnstate = "ATTACK"
+								if tarbtns[0].is_clicked(event.pos):
+									usedmoves[mon] = ["use","enemy 1",move,moves[playerside[mon].moves[move]].priority]
+								if tarbtns[1].is_clicked(event.pos):
+									usedmoves[mon] = ["use","enemy 2",move,moves[playerside[mon].moves[move]].priority]
+								if tarbtns[2].is_clicked(event.pos):
+									usedmoves[mon] = ["use","ally",move,moves[playerside[mon].moves[move]].priority]
+					if btnstate == "TARGET":
+						mon += 1
+						btnstate = "MAIN"
+		fin = False
 		if len(enemyside) > 0:
 			for mon in enemyside:
 				if mon.CHP > 0:
-					any = True
+					fin = True
 					break
-		if any == False:
+		if fin == False:
 			return "OVERWORLD"
-		any = False
+		fin = False
 		for mon in playerside:
 			if mon.CHP > 0:
-				any = True
+				fin = True
 				break
-		if any == False:
+		if fin == False:
 			return "OVERWORLD"
 
 def main():
@@ -391,8 +440,6 @@ def main():
 	encounter = []
 	safe = safenumber()
 	while running:
-		if len(current_game_state["mons"]) != 6:
-			current_game_state["mons"].append([""] * (6 - len(current_game_state["mons"])))
 		screen.blit(background_image, (0,0))
 		keys = pygame.key.get_pressed()
 		events = pygame.event.get()
@@ -434,10 +481,10 @@ def main():
 					version = "singles"
 					if random.random() < 0.750: # These movesets have not been defined
 						enemy = random.choice(spawnzones[current_bush.pool][0])
-						encounter.append(mon(species[enemy], enemy, random.randint(current_bush.pool[1], current_bush.pool[2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
+						encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
 						version = "doubles"
 					enemy = random.choice(spawnzones[current_bush.pool][0])
-					encounter.append(mon(species[enemy], enemy, random.randint(current_bush.pool[1], current_bush.pool[2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
+					encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
 					state = "BATTLE"
 					safe = safenumber()
 			space.step(1 / FPS)
