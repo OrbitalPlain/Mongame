@@ -301,7 +301,6 @@ def battle(enemy, type):
 	global current_game_state, buttons
 	enemyside = []
 	playerside = []
-	wait = True
 	if type == "doubles":
 		enemyside.append(enemy[1])
 		for i in current_game_state["mons"]:
@@ -319,6 +318,7 @@ def battle(enemy, type):
 			lim = 2
 		else:
 			lim = 1
+	usedmoves = [["","", 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
 	while True:
 		screen.blit(battlebackground_image, (0,0))
 		if type == "doubles": # adds pokemon to area as needed
@@ -329,90 +329,129 @@ def battle(enemy, type):
 		else:
 			screen.blit(species[playerside[0].species].front,(100,300))
 			screen.blit(enemyside[0].species.front,(500,50))
-		usedmoves = [["",[0], 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move slot (if use), priority
 		if btnstate not in ["BAG", "MONS"]:
 			screen.blit(battleui_image,(0,0))
-		match btnstate:
-			case "MAIN":
-				trect = pygame.Rect(10,10,180,350)
-				tsurface = bigfont.render(f"What will {playerside[monnumber].name} do?", True, (0,0,0), None, 220)
-				screen.blit(tsurface,trect)
-				for b in ["battle_attack","battle_bag","battle_mons","battle_run"]:
-					buttons[b].draw(screen)
-				for event in pygame.event.get():
-					if event.type == pygame.MOUSEBUTTONDOWN:
-						if event.button == 1:
-							if buttons["battle_attack"].is_clicked(event.pos):
-								btnstate = "ATTACK"
-							#elif buttons["battle_bag"].is_clicked(event.pos):
-								#btnstate = "BAG"
-							#elif buttons["battle_mons"].is_clicked(event.pos):
-								#btnstate = "MONS"
-							#elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
-								#return "OVERWORLD"
-			case "ATTACK":
-				move = ""
-				abtns = [
-					btn(20, 10, 180, 120, playerside[monnumber].moves[0]),
-					btn(20, 140, 180, 120, playerside[monnumber].moves[1]),
-					btn(20, 270, 180, 120, playerside[monnumber].moves[2]),
-					btn(20, 400, 180, 120, playerside[monnumber].moves[3]),
-					btn(20, 540, 180, 60, "exit")
-				]
-				for b in abtns:
-					b.draw(screen)
-				for event in pygame.event.get():
-					if event.type == pygame.MOUSEBUTTONDOWN:
-						if event.button == 1:
-							if abtns[0].is_clicked(event.pos):
-								if playerside[monnumber].moves[0] != "":
-									move = 0
-							if abtns[1].is_clicked(event.pos):
-								if playerside[monnumber].moves[1] != "":
-									move = 1
-							if abtns[2].is_clicked(event.pos):
-								if playerside[monnumber].moves[2] != "":
-									move = 2
-							if abtns[3].is_clicked(event.pos):
-								if playerside[monnumber].moves[3] != "":
-									move = 3
-							if abtns[4].is_clicked(event.pos):
-								btnstate = "MAIN"
-				if btnstate != "MAIN" and move != "":
-					if moves[playerside[monnumber].moves[move]].targeting == "all":
-						usedmoves[monnumber] = ["use","all",move,moves[playerside[monnumber].moves[move]].priority]
-					elif moves[playerside[monnumber].moves[move]].targeting == "both":
-						usedmoves[monnumber] = ["use","both",move,moves[playerside[monnumber].moves[move]].priority]
-					elif type == "doubles":
-						btnstate = "TARGET"
+		if monnumber < lim:
+			match btnstate:
+				case "MAIN":
+					trect = pygame.Rect(10,10,180,350)
+					tsurface = bigfont.render(f"What will {playerside[monnumber].name} do?", True, (0,0,0), None, 220)
+					screen.blit(tsurface,trect)
+					for b in ["battle_attack","battle_bag","battle_mons","battle_run"]:
+						buttons[b].draw(screen)
+					for event in pygame.event.get():
+						if event.type == pygame.MOUSEBUTTONDOWN:
+							if event.button == 1:
+								if buttons["battle_attack"].is_clicked(event.pos):
+									btnstate = "ATTACK"
+								#elif buttons["battle_bag"].is_clicked(event.pos):
+									#btnstate = "BAG"
+								#elif buttons["battle_mons"].is_clicked(event.pos):
+									#btnstate = "MONS"
+								#elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
+									#return "OVERWORLD"
+				case "ATTACK":
+					move = ""
+					abtns = [
+						btn(20, 10, 180, 120, playerside[monnumber].moves[0]),
+						btn(20, 140, 180, 120, playerside[monnumber].moves[1]),
+						btn(20, 270, 180, 120, playerside[monnumber].moves[2]),
+						btn(20, 400, 180, 120, playerside[monnumber].moves[3]),
+						btn(20, 540, 180, 60, "exit")
+					]
+					for b in abtns:
+						b.draw(screen)
+					for event in pygame.event.get():
+						if event.type == pygame.MOUSEBUTTONDOWN:
+							if event.button == 1:
+								if abtns[0].is_clicked(event.pos):
+									if playerside[monnumber].moves[0] != "":
+										move = 0
+								if abtns[1].is_clicked(event.pos):
+									if playerside[monnumber].moves[1] != "":
+										move = 1
+								if abtns[2].is_clicked(event.pos):
+									if playerside[monnumber].moves[2] != "":
+										move = 2
+								if abtns[3].is_clicked(event.pos):
+									if playerside[monnumber].moves[3] != "":
+										move = 3
+								if abtns[4].is_clicked(event.pos):
+									btnstate = "MAIN"
+					if btnstate != "MAIN" and move != "":
+						if moves[playerside[monnumber].moves[move]].targeting == "all":
+							usedmoves[monnumber] = ["use","all",move,playerside[monnumber]]
+							monnumber += 1
+							btnstate = "MAIN"
+						elif moves[playerside[monnumber].moves[move]].targeting == "both":
+							usedmoves[monnumber] = ["use","both",move,playerside[monnumber]]
+							monnumber += 1
+							btnstate = "MAIN"
+						elif type == "doubles":
+							btnstate = "TARGET"
+						else:
+							usedmoves[monnumber] = ["use","both",move,playerside[monnumber]]
+							monnumber += 1
+							btnstate = "MAIN"
+				case "TARGET":
+					tarbtns = [
+						btn(20,200,85,60,"enemy 1"),
+						btn(115,200,85,60,"enemy 2"),
+						btn(60,270,100,60, "ally"),
+						btn(20,350,180,60,"back")
+					]
+					trect = pygame.Rect(10,10,180,180)
+					tsurface = bigfont.render("Which mon is being targeted?", True, (0,0,0))
+					screen.blit(tsurface,trect)
+					for b in tarbtns:
+						b.draw(screen)
+					for event in pygame.event.get():
+						if event.type == pygame.MOUSEBUTTONDOWN:
+							if event.button == 1:
+								if tarbtns[3].is_clicked(event.pos):
+									btnstate = "ATTACK"
+								if tarbtns[0].is_clicked(event.pos):
+									usedmoves[monnumber] = ["use","enemy 1",move,playerside[monnumber]]
+								if tarbtns[1].is_clicked(event.pos):
+									usedmoves[monnumber] = ["use","enemy 2",move,playerside[monnumber]]
+								if tarbtns[2].is_clicked(event.pos):
+									usedmoves[monnumber] = ["use","ally",move,playerside[monnumber]]
+					if btnstate == "TARGET":
+						monnumber += 1
+						btnstate = "MAIN"
+		else:
+			ecount = 0
+			enemymoves = [["","",-1,0]] * len(enemyside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
+			for e in enemy:
+				m = random.choice(e.moves)
+				if type == "doubles" and m.targeting == "one":
+					if random.randint(1,2) == 1:
+						t = "enemy 1"
 					else:
-						usedmoves[monnumber] = ["use","both",move,moves[playerside[monnumber].moves[move]].priority]
-			case "TARGET":
-				tarbtns = [
-					btn(20,200,85,60,"enemy 1"),
-					btn(115,200,85,60,"enemy 2"),
-					btn(60,270,100,60, "ally"),
-					btn(20,350,180,60,"back")
-				]
-				trect = pygame.Rect(10,10,180,180)
-				tsurface = bigfont.render("Which mon is being targeted?", True, (0,0,0))
-				screen.blit(tsurface,trect)
-				for b in tarbtns:
-					b.draw(screen)
-				for event in pygame.event.get():
-					if event.type == pygame.MOUSEBUTTONDOWN:
-						if event.button == 1:
-							if tarbtns[3].is_clicked(event.pos):
-								btnstate = "ATTACK"
-							if tarbtns[0].is_clicked(event.pos):
-								usedmoves[monnumber] = ["use","enemy 1",move,moves[playerside[monnumber].moves[move]].priority]
-							if tarbtns[1].is_clicked(event.pos):
-								usedmoves[monnumber] = ["use","enemy 2",move,moves[playerside[monnumber].moves[move]].priority]
-							if tarbtns[2].is_clicked(event.pos):
-								usedmoves[monnumber] = ["use","ally",move,moves[playerside[monnumber].moves[move]].priority]
-				if btnstate == "TARGET":
-					monnumber += 1
-					btnstate = "MAIN"
+						t = "enemy 2"
+				else:
+					if m.targeting != "one":
+						t = m.targeting
+					else:
+						t = "both"
+				enemymoves[ecount] = ["use",t,m,e]
+			# will code enemy AI later
+			movelist = []
+			for m in enemymoves + usedmoves:
+				if len(movelist) == 0:
+					movelist.append(m)
+				else:
+					for i in range(len(movelist)):
+						if m[2].priority > movelist[i][2].priority:
+							movelist.insert(i,m)
+						elif m[2].priority == movelist[i][2].proiority:
+							if m[3].speed > movelist[i][3].speed:
+								movelist.insert(i,m)
+							elif m[3].speed == movelist[i][3].speed:
+								if random.randint(1,2) == 1:
+									movelist.insert(i,m)
+								else:
+									movelist.insert(i + 1,m)
 		fin = False
 		if len(enemyside) > 0:
 			for mon in enemyside:
@@ -479,10 +518,10 @@ def main():
 					version = "singles"
 					if random.random() < 0.750 and len(current_game_state["mons"]) > 1: # These movesets have not been defined
 						enemy = random.choice(spawnzones[current_bush.pool][0])
-						encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
+						encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle"]))
 						version = "doubles"
 					enemy = random.choice(spawnzones[current_bush.pool][0])
-					encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
+					encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle"]))
 					state = "BATTLE"
 					safe = safenumber()
 			space.step(1 / FPS)
