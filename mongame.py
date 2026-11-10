@@ -40,7 +40,8 @@ state = "OVERWORLD"
 usedIDs = [0]
 FPS = 60
 clock = pygame.time.Clock()
-font = pygame.font.SysFont("Arial", 24) # might make own font eventually
+bigfont = pygame.font.SysFont("Arial", 48) # might make own font eventually
+smolfont = pygame.font.SysFont("Arial", 20)
 
 hisuian_zoroark = pygame.image.load("zoroark-hisuian.png").convert_alpha()
 rattata = pygame.image.load("rattata.png").convert_alpha()
@@ -54,7 +55,7 @@ player_image = pygame.image.load("Player.png").convert_alpha()
 player_diameter = int(player_shape.radius * 2)
 player_image = pygame.transform.scale(player_image, (player_diameter, player_diameter))
 battleui_image = pygame.image.load("ui.png").convert_alpha()
-battleui_image = pygame.transform.scale(battleui_image, (600 * screenmult, 200 * screenmult))
+battleui_image = pygame.transform.scale(battleui_image, (220 * screenmult, 600 * screenmult))
 button_image = pygame.image.load("button.png").convert_alpha()
 button_image = pygame.transform.scale(button_image, (25 * screenmult, 50 * screenmult))
 
@@ -162,7 +163,7 @@ class btn:
 			self.image = pygame.image.load(image_path).convert_alpha()
 			self.image = pygame.transform.scale(self.image,(width,height))
 		else:
-			self.text_surface = font.render(self.text, True, (255,255,255))
+			self.text_surface = smolfont.render(self.text, True, (255,255,255))
 			self.text_rect = self.text_surface.get_rect(center=self.rect.center)
 	def draw(self,surface):
 		if self.image_path != None:
@@ -176,10 +177,10 @@ class btn:
 
 
 buttons = {
-	"battle_attack": btn(10,400,75,75,"Attack"),
-	"battle_bag": btn(115,400,75,75,"Bag"),
-	"battle_mons": btn(10,505,75,75,"Mons"),
-	"battle_run": btn(115,505,75,75,"Coward")
+	"battle_attack": btn(20,400,75,75,"Attack"),
+	"battle_bag": btn(125,400,75,75,"Bag"),
+	"battle_mons": btn(20,505,75,75,"Mons"),
+	"battle_run": btn(125,505,75,75,"Coward")
 }
 
 for wall in walls:
@@ -300,6 +301,7 @@ def battle(enemy, type):
 	global current_game_state, buttons
 	enemyside = []
 	playerside = []
+	wait = True
 	if type == "doubles":
 		enemyside.append(enemy[1])
 		for i in current_game_state["mons"]:
@@ -307,132 +309,128 @@ def battle(enemy, type):
 				playerside.append(i)
 				break
 	enemyside.append(enemy[0])
-	print(current_game_state["mons"])
 	for i in current_game_state["mons"]:
 		if i.chp > 0:
 			if i not in playerside:
 				playerside.append(i)
-	while True:
-		screen.blit(battlebackground_image, (0,0))
-		if type == "doubles": # adds pokemon to area as needed
-			screen.blit(pygame.transform.scale(species[enemyside[0].species].front,(170,170)),(400,50))
-			screen.blit(pygame.transform.scale(species[enemyside[1].species].front,(170,170)),(520,100))
-			screen.blit(pygame.transform.scale(species[playerside[0].species].front,(225,225)),(210,350))
-			screen.blit(pygame.transform.scale(species[playerside[1].species].front,(225,225)),(330,400))
-		else:
-			screen.blit(species[playerside[0].species].front,(100,300))
-			screen.blit(species[enemyside[0].species].front,(500,50))
 		btnstate = "MAIN"
-		mon = 0
+		monnumber = 0
 		if type == "doubles":
 			lim = 2
 		else:
 			lim = 1
+	while True:
+		screen.blit(battlebackground_image, (0,0))
+		if type == "doubles": # adds pokemon to area as needed
+			screen.blit(pygame.transform.scale(enemyside[0].species.front,(170,170)),(400,50))
+			screen.blit(pygame.transform.scale(enemyside[1].species.front,(170,170)),(520,100))
+			screen.blit(pygame.transform.scale(species[playerside[0].species].front,(225,225)),(210,350))
+			screen.blit(pygame.transform.scale(species[playerside[1].species].front,(225,225)),(330,400))
+		else:
+			screen.blit(species[playerside[0].species].front,(100,300))
+			screen.blit(enemyside[0].species.front,(500,50))
 		usedmoves = [["",[0], 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move slot (if use), priority
-		while True: # ^^ before turn, VV after turn, this is during turn select
-			if mon == lim:
-				break
-			if btnstate not in ["BAG", "MONS"]:
-				screen.blit(battleui_image,(0,0))
-			match btnstate:
-				case "MAIN":
-					trect = pygame.Rect(10,10,180,350)
-					tsurface = font.render(f"What will {playerside[mon].name} do?", True, (0,0,0))
-					screen.blit(tsurface,trect)
-					for b in ["battle_attack","battle_bag","battle_mons","battle_run"]:
-						buttons[b].draw(screen)
-					for event in pygame.event.get():
-						if event.type == pygame.MOUSEBUTTONDOWN:
-							if event.button == 1:
-								if buttons["battle_attack"].is_clicked(event.pos):
-									btnstate = "ATTACK"
-									break
-								elif buttons["battle_bag"].is_clicked(event.pos):
-									btnstate = "BAG"
-									break
-								elif buttons["battle_mons"].is_clicked(event.pos):
-									btnstate = "MONS"
-									break
-								elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
-									return "OVERWORLD"
-				case "ATTACK":
-					move = ""
-					abtns = [
-						btn(10, 10, 180, 120, playerside[mon].moves[0]),
-						btn(10, 140, 180, 120, playerside[mon].moves[1]),
-						btn(10, 270, 180, 120, playerside[mon].moves[2]),
-						btn(10, 400, 180, 120, playerside[mon].moves[3]),
-						btn(10, 540, 180, 60, "exit")
-					]
-					for b in abtns:
-						b.draw(screen)
-					for event in pygame.event.get():
-						if event.type == pygame.MOUSEBUTTONDOWN:
-							if event.button == 1:
-								if abtns[0].is_clicked(event.pos):
-									if playerside[mon].moves[0] != "":
-										move = 0
-								if abtns[1].is_clicked(event.pos):
-									if playerside[mon].moves[1] != "":
-										move = 1
-								if abtns[2].is_clicked(event.pos):
-									if playerside[mon].moves[2] != "":
-										move = 2
-								if abtns[3].is_clicked(event.pos):
-									if playerside[mon].moves[3] != "":
-										move = 3
-								if abtns[4].is_clicked(event.pos):
-									btnstate = "MAIN"
-					if btnstate != "MAIN" and move != "":
-						if playerside[move].targeting == "all":
-							usedmoves[mon] = ["use","all",move,moves[playerside[mon].moves[move]].priority]
-						elif playerside[move].targeting == "both":
-							usedmoves[mon] = ["use","both",move,moves[playerside[mon].moves[move]].priority]
-						elif type == "doubles":
-							btnstate = "TARGET"
-						else:
-							usedmoves[mon] = ["use","both",move,moves[playerside[mon].moves[move]].priority]
-				case "TARGET":
-					tarbtns = [
-						btn(10,200,85,60,"enemy 1"),
-						btn(105,200,85,60,"enemy 2"),
-						btn(50,270,100,60, "ally"),
-						btn(10,350,180,60,"back")
-					]
-					trect = pygame.Rect(10,10,180,180)
-					tsurface = font.render("Which mon is being targeted?", True, (0,0,0))
-					screen.blit(tsurface,trect)
-					for b in tarbtns:
-						b.draw(screen)
-					for event in pygame.event.get():
-						if event.type == pygame.MOUSEBUTTONDOWN:
-							if event.button == 1:
-								if tarbtns[3].is_clicked(event.pos):
-									btnstate = "ATTACK"
-								if tarbtns[0].is_clicked(event.pos):
-									usedmoves[mon] = ["use","enemy 1",move,moves[playerside[mon].moves[move]].priority]
-								if tarbtns[1].is_clicked(event.pos):
-									usedmoves[mon] = ["use","enemy 2",move,moves[playerside[mon].moves[move]].priority]
-								if tarbtns[2].is_clicked(event.pos):
-									usedmoves[mon] = ["use","ally",move,moves[playerside[mon].moves[move]].priority]
-					if btnstate == "TARGET":
-						mon += 1
-						btnstate = "MAIN"
+		if btnstate not in ["BAG", "MONS"]:
+			screen.blit(battleui_image,(0,0))
+		match btnstate:
+			case "MAIN":
+				trect = pygame.Rect(10,10,180,350)
+				tsurface = bigfont.render(f"What will {playerside[monnumber].name} do?", True, (0,0,0), None, 220)
+				screen.blit(tsurface,trect)
+				for b in ["battle_attack","battle_bag","battle_mons","battle_run"]:
+					buttons[b].draw(screen)
+				for event in pygame.event.get():
+					if event.type == pygame.MOUSEBUTTONDOWN:
+						if event.button == 1:
+							if buttons["battle_attack"].is_clicked(event.pos):
+								btnstate = "ATTACK"
+							#elif buttons["battle_bag"].is_clicked(event.pos):
+								#btnstate = "BAG"
+							#elif buttons["battle_mons"].is_clicked(event.pos):
+								#btnstate = "MONS"
+							#elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
+								#return "OVERWORLD"
+			case "ATTACK":
+				move = ""
+				abtns = [
+					btn(20, 10, 180, 120, playerside[monnumber].moves[0]),
+					btn(20, 140, 180, 120, playerside[monnumber].moves[1]),
+					btn(20, 270, 180, 120, playerside[monnumber].moves[2]),
+					btn(20, 400, 180, 120, playerside[monnumber].moves[3]),
+					btn(20, 540, 180, 60, "exit")
+				]
+				for b in abtns:
+					b.draw(screen)
+				for event in pygame.event.get():
+					if event.type == pygame.MOUSEBUTTONDOWN:
+						if event.button == 1:
+							if abtns[0].is_clicked(event.pos):
+								if playerside[monnumber].moves[0] != "":
+									move = 0
+							if abtns[1].is_clicked(event.pos):
+								if playerside[monnumber].moves[1] != "":
+									move = 1
+							if abtns[2].is_clicked(event.pos):
+								if playerside[monnumber].moves[2] != "":
+									move = 2
+							if abtns[3].is_clicked(event.pos):
+								if playerside[monnumber].moves[3] != "":
+									move = 3
+							if abtns[4].is_clicked(event.pos):
+								btnstate = "MAIN"
+				if btnstate != "MAIN" and move != "":
+					if moves[playerside[monnumber].moves[move]].targeting == "all":
+						usedmoves[monnumber] = ["use","all",move,moves[playerside[monnumber].moves[move]].priority]
+					elif moves[playerside[monnumber].moves[move]].targeting == "both":
+						usedmoves[monnumber] = ["use","both",move,moves[playerside[monnumber].moves[move]].priority]
+					elif type == "doubles":
+						btnstate = "TARGET"
+					else:
+						usedmoves[monnumber] = ["use","both",move,moves[playerside[monnumber].moves[move]].priority]
+			case "TARGET":
+				tarbtns = [
+					btn(20,200,85,60,"enemy 1"),
+					btn(115,200,85,60,"enemy 2"),
+					btn(60,270,100,60, "ally"),
+					btn(20,350,180,60,"back")
+				]
+				trect = pygame.Rect(10,10,180,180)
+				tsurface = bigfont.render("Which mon is being targeted?", True, (0,0,0))
+				screen.blit(tsurface,trect)
+				for b in tarbtns:
+					b.draw(screen)
+				for event in pygame.event.get():
+					if event.type == pygame.MOUSEBUTTONDOWN:
+						if event.button == 1:
+							if tarbtns[3].is_clicked(event.pos):
+								btnstate = "ATTACK"
+							if tarbtns[0].is_clicked(event.pos):
+								usedmoves[monnumber] = ["use","enemy 1",move,moves[playerside[monnumber].moves[move]].priority]
+							if tarbtns[1].is_clicked(event.pos):
+								usedmoves[monnumber] = ["use","enemy 2",move,moves[playerside[monnumber].moves[move]].priority]
+							if tarbtns[2].is_clicked(event.pos):
+								usedmoves[monnumber] = ["use","ally",move,moves[playerside[monnumber].moves[move]].priority]
+				if btnstate == "TARGET":
+					monnumber += 1
+					btnstate = "MAIN"
 		fin = False
 		if len(enemyside) > 0:
 			for mon in enemyside:
-				if mon.CHP > 0:
+				if mon.chp > 0:
 					fin = True
 					break
 		if fin == False:
 			return "OVERWORLD"
 		fin = False
 		for mon in playerside:
-			if mon.CHP > 0:
+			if mon.chp > 0:
 				fin = True
 				break
 		if fin == False:
 			return "OVERWORLD"
+		pygame.display.flip()
+		clock.tick(60)
+
 
 def main():
 	global state, current_game_state, usedIDs
@@ -479,7 +477,7 @@ def main():
 				if safe <= 0:
 					current_bush = bushzones[hit_index]
 					version = "singles"
-					if random.random() < 0.750: # These movesets have not been defined
+					if random.random() < 0.750 and len(current_game_state["mons"]) > 1: # These movesets have not been defined
 						enemy = random.choice(spawnzones[current_bush.pool][0])
 						encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle", "", "", ""]))
 						version = "doubles"
@@ -500,6 +498,7 @@ def main():
 				space.debug_draw(draw_options) # shows player hitbox
 		if state == "BATTLE":
 			state = battle(encounter, version)
+			print("done")
 		if state == "START":
 			screen.blit(start_screen, (0,0))
 		pygame.display.flip()
