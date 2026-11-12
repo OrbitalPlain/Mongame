@@ -37,7 +37,6 @@ space.add(player_body, player_shape)
 
 pygame.init()
 state = "OVERWORLD"
-usedIDs = [0]
 FPS = 60
 clock = pygame.time.Clock()
 bigfont = pygame.font.SysFont("Arial", 48) # might make own font eventually
@@ -45,6 +44,7 @@ smolfont = pygame.font.SysFont("Arial", 20)
 
 hisuian_zoroark = pygame.image.load("zoroark-hisuian.png").convert_alpha()
 rattata = pygame.image.load("rattata.png").convert_alpha()
+chienpao = pygame.image.load("Chienpao.png").convert_alpha()
 
 start_screen = pygame.image.load("start.png").convert()
 start_screen = pygame.transform.scale(start_screen, (SCREENWIDTH, SCREENHEIGHT))
@@ -60,7 +60,7 @@ button_image = pygame.image.load("button.png").convert_alpha()
 button_image = pygame.transform.scale(button_image, (25 * screenmult, 50 * screenmult))
 
 class creature: # general species
-	def __init__(self, type, MHP, Atk, Def, SpA, SpD, Speed, frontsprite=None): # will add learnset, XP requirement, spawn position, ability, etc. later
+	def __init__(self, type, MHP, Atk, Def, SpA, SpD, Speed, frontsprite=None): # will add learnset, XP requirement, ability, etc. later
 		self.type = type
 		self.mhp = MHP
 		self.Atk = Atk
@@ -71,27 +71,29 @@ class creature: # general species
 		self.front = frontsprite
 
 class move: # general move // WILL ADD ANIMATION
-	def __init__(self, type, BP, accuracy, targeting, category, priority=0):
+	def __init__(self, type, BP, accuracy, targeting, category, secondaryeffects=None, priority=0):
 		self.type = type
 		self.bp = BP
 		self.accuracy = accuracy
 		self.targeting = targeting # one, all, both
 		self.category = category
 		self.priority = priority
+		self.effects = secondaryeffects
 
 species = { # will add more, currently just placeholders
-	"Empty": creature(["None"],0,0,0,0,0,0),
 	"Rattata": creature(["Normal"], 30, 56, 35, 25, 35, 72, rattata),
-	"Hisuian Zoroark": creature(["Normal", "Ghost"], 55, 100, 60, 125, 60, 110, hisuian_zoroark)
+	"Hisuian Zoroark": creature(["Normal", "Ghost"], 55, 100, 60, 125, 60, 110, hisuian_zoroark),
+	"Chienpao": creature(["Ice", "Dark"], 80, 120, 80, 90, 65, 135, chienpao)
 }
 
 moves = {
 	"Tackle": move(["Normal"], 60, 100, "one", "Physical"),
-	"Earthquake": move(["Ground"], 100, 100, "all", "Physical")
+	"Earthquake": move(["Ground"], 100, 100, "all", "Physical"),
+	"Uturn": move(["Bug"],40,100,"one","PhysSwitch")
 }
 
 class mon: # specific instance of creature
-	def __init__(self, species, name, level, current_type, stat_mods, CHP, moves): # will add EV, IV, condition, item, moves, etc. later
+	def __init__(self, species, name, level, current_type, stat_mods, CHP, moves): # will add EV, IV, condition, item, etc. later
 		self.species = species
 		self.name = name
 		self.level = level
@@ -133,6 +135,7 @@ typechart = [ # currently set for pokemon, will change
 
 if debug: # makes sure the player has a mon before starter selection is complete
 	current_game_state["mons"].append(mon("Hisuian Zoroark", "Boo", 10, ["Normal", "Ghost"], [0,0,0,0,0], 55, ["Tackle", "Earthquake", "", ""]))
+	#current_game_state["mons"].append(mon("Chienpao","Wiggles",10,["Ice", "Dark"],[0,0,0,0,0],80,["Earthquake", "Uturn",  "", ""]))
 
 walls = [ # numbers are (starting coord), (ending coord), thickness
 	pymunk.Segment(space.static_body, (100, 100), (700, 100), 20 * screenmult)
@@ -155,10 +158,11 @@ spawnzones = {
 }
 
 class btn:
-	def __init__(self,x,y,width,height,text,image_path=None):
+	def __init__(self,x,y,width,height,text,color=(0,0,0),image_path=None):
 		self.rect = pygame.Rect(x,y,width,height)
 		self.text = text
 		self.image_path = image_path
+		self.color = color
 		if image_path != None:
 			self.image = pygame.image.load(image_path).convert_alpha()
 			self.image = pygame.transform.scale(self.image,(width,height))
@@ -169,7 +173,7 @@ class btn:
 		if self.image_path != None:
 			surface.blit(self.image, self.rect)
 		else:
-			pygame.draw.rect(surface,(0,0,0), self.rect)
+			pygame.draw.rect(surface,self.color, self.rect)
 			pygame.draw.rect(surface, (255,255,255), self.rect, 2)
 			surface.blit(self.text_surface,self.text_rect)
 	def is_clicked(self, mouse_pos):
@@ -346,8 +350,8 @@ def battle(enemy, type):
 									btnstate = "ATTACK"
 								#elif buttons["battle_bag"].is_clicked(event.pos):
 									#btnstate = "BAG"
-								#elif buttons["battle_mons"].is_clicked(event.pos):
-									#btnstate = "MONS"
+								elif buttons["battle_mons"].is_clicked(event.pos):
+									btnstate = "MONS"
 								#elif buttons["battle_run"].is_clicked(event.pos): # will make it more difficult to run from more difficult opponents later
 									#return "OVERWORLD"
 				case "ATTACK":
@@ -366,16 +370,16 @@ def battle(enemy, type):
 							if event.button == 1:
 								if abtns[0].is_clicked(event.pos):
 									if playerside[monnumber].moves[0] != "":
-										move = 0
+										move = playerside[monnumber].moves[0]
 								if abtns[1].is_clicked(event.pos):
 									if playerside[monnumber].moves[1] != "":
-										move = 1
+										move = playerside[monnumber].moves[1]
 								if abtns[2].is_clicked(event.pos):
 									if playerside[monnumber].moves[2] != "":
-										move = 2
+										move = playerside[monnumber].moves[2]
 								if abtns[3].is_clicked(event.pos):
 									if playerside[monnumber].moves[3] != "":
-										move = 3
+										move = playerside[monnumber].moves[3]
 								if abtns[4].is_clicked(event.pos):
 									btnstate = "MAIN"
 					if btnstate != "MAIN" and move != "":
@@ -419,19 +423,42 @@ def battle(enemy, type):
 					if btnstate == "TARGET":
 						monnumber += 1
 						btnstate = "MAIN"
+				case "MONS":
+					monbtns = []
+					for i in range(len(current_game_state["mons"])):
+						if current_game_state["mons"][i] in playerside:
+							monbtns.append(btn(20, 20 + 100 * i, 180, 80, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (0,141,191)))
+						elif current_game_state["mons"][i].chp <= 0:
+							monbtns.append(btn(20, 20 + 100 * i, 180, 80, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (255,0,0)))
+						else:
+							monbtns.append(btn(20, 20 + 100 * i, 180, 80, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species))
+					for i in range(6 - len(monbtns)):
+						monbtns.append(btn(20, 20 + 100 * (i + len(monbtns)),180,80,""))
+					for event in pygame.event.get():
+						if event.type == pygame.MOUSEBUTTONDOWN:
+							if event.button == 1:
+								if monbtns[0].is_clicked(event.pos):
+									if monbtns[0] not in playerside and current_game_state["mons"][0].chp > 0:
+										playerside[monnumber] == current_game_state["mons"][0]
+								elif monbtns[1].is_clicked(event.pos):
+										if monbtns[1] not in playerside and current_game_state["mons"][0].chp > 0:
+											playerside[monnumber] == current_game_state["mons"][0]
+								elif monbtns[0].is_clicked(event.pos):
+									if monbtns[0] not in playerside and current_game_state["mons"][0].chp > 0:
+										playerside[monnumber] == current_game_state["mons"][0]
 		else:
 			ecount = 0
 			enemymoves = [["","",-1,0]] * len(enemyside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
 			for e in enemy:
 				m = random.choice(e.moves)
-				if type == "doubles" and m.targeting == "one":
+				if type == "doubles" and moves[m].targeting == "one":
 					if random.randint(1,2) == 1:
 						t = "enemy 1"
 					else:
 						t = "enemy 2"
 				else:
-					if m.targeting != "one":
-						t = m.targeting
+					if moves[m].targeting != "one":
+						t = moves[m].targeting
 					else:
 						t = "both"
 				enemymoves[ecount] = ["use",t,m,e]
@@ -441,6 +468,8 @@ def battle(enemy, type):
 				if len(movelist) == 0:
 					movelist.append(m)
 				else:
+					if m[0] == "switch":
+						movelist.insert(0,m)
 					for i in range(len(movelist)):
 						if m[2].priority > movelist[i][2].priority:
 							movelist.insert(i,m)
@@ -452,6 +481,70 @@ def battle(enemy, type):
 									movelist.insert(i,m)
 								else:
 									movelist.insert(i + 1,m)
+						else:
+							if m[3].speed < movelist[i][3].speed:
+								if i == len(movelist) - 1:
+									movelist.append(m)
+			for mv in movelist:
+				playside = mv in usedmoves
+				match mv[0]: # eventually add secondary effects
+					case "switch":
+						if playside:
+							playerside[playerside.index(mv[3])] == mv[2]
+						else:
+							enemyside[enemyside.index(mv[3])] == mv[2]
+					case "use":
+						match mv[2].category:
+							case "Physical" | "Special":
+								match mv[1]:
+									case "both":
+										if playerside:
+											for m in enemyside:
+												m.chp -= damagecalc(mv[2],mv[3],m,len(enemyside))
+										else:
+											for m in playerside:
+												m.chp -= damagecalc(mv[2],mv[3],m,len(enemyside))
+									case "all":
+										all = enemyside + playerside
+										all.pop(all.index(m[3]))
+										for m in all:
+											m.chp -= damagecalc(mv[2],mv[3],m,len(enemyside))
+									case "ally":
+										a = playerside
+										a.pop(a.index(m[3]))
+										for m in a:
+											m.chp -= damagecalc(mv[2],mv[3],m,len(a))
+									case "enemy 1":
+										enemyside[0].chp -= damagecalc(mv[2],mv[3],enemyside[0],1)
+									case "enemy 2":
+										enemyside[1].chp -= damagecalc(mv[2],mv[3],enemyside[1],1)
+							case "Status":
+								print("status not done")# status is coded later
+							case "PhysSwitch":
+								match mv[1]:
+									case "both":
+										if playside:
+											for m in enemyside:
+												m.chp -= damagecalc(m[2][0],m[3],m,len(enemyside))
+										else:
+											for m in playerside:
+												m.chp -= damagecalc(m[2][0],m[3],m,len(playerside))
+									case "all":
+										all = enemyside + playerside
+										all.pop(all.index(m[3]))
+										for m in all:
+											m.chp -= damagecalc(mv[2][0],mv[3],m,len(enemyside))
+									case "ally":
+										a = playerside
+										a.pop(a.index(m[3]))
+										for m in a:
+											m.chp -= damagecalc(mv[2][0],mv[3],m,len(a))
+									case "enemy 1":
+										enemyside[0].chp -= damagecalc(mv[2][0],mv[3],enemyside[0],1)
+									case "enemy 2":
+										enemyside[1].chp -= damagecalc(mv[2][0],mv[3],enemyside[1],1)
+								if playside:
+									playerside[playerside.index(mv[3])] == mv[2][1]
 		fin = False
 		if len(enemyside) > 0:
 			for mon in enemyside:
