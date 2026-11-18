@@ -31,6 +31,12 @@ clock = pygame.time.Clock()
 if debug: # makes sure the player has a mon before starter selection is complete
 	current_game_state["mons"].append(mon("Hisuian Zoroark", "Boo", 10, ["Normal", "Ghost"], [0,0,0,0,0], 55, ["Tackle", "Earthquake", "", ""]))
 	current_game_state["mons"].append(mon("Chienpao","Wiggles",10,["Ice", "Dark"],[0,0,0,0,0],80,["Earthquake", "Uturn", "Swordsdance", ""]))
+	current_game_state["mons"].append(mon("Rattata","Squeak",10,["Normal"],[0,0,0,0,0],30,["Tackle", "Swordsdance", "", ""]))
+	current_game_state["mons"].append(mon("Rattata","53",10,["Normal"],[0,0,0,0,0],30,["Tackle", "Earthquake", "", ""]))
+	current_game_state["mons"].append(mon("Rattata","ded",10,["Normal"],[0,0,0,0,0],0,["Tackle","Uturn", "", ""]))
+	current_game_state["mons"].append(mon("Hissuian Zoroark","Other boo",10,["Normal","Ghost"],[0,0,0,0,0], 55, ["Swordsdance","Uturn","Earthquake",""]))
+	for i in range(len(current_game_state["mons"])):
+		print(current_game_state["mons"][i].name)
 
 walls = [ # numbers are (starting coord), (ending coord), thickness
 	pymunk.Segment(space.static_body, (100, 100), (700, 100), 20 * screenmult)
@@ -80,12 +86,13 @@ def battle(enemy, type):
 		if i.chp > 0:
 			if i not in playerside:
 				playerside.append(i)
-		btnstate = "MAIN"
-		monnumber = 0
-		if type == "doubles":
-			lim = 2
-		else:
-			lim = 1
+				break
+	btnstate = "MAIN"
+	monnumber = 0
+	if type == "doubles":
+		lim = 2
+	else:
+		lim = 1
 	usedmoves = [["","", 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
 	movenum = 0
 	movenumber = math.floor(movenum)
@@ -149,12 +156,16 @@ def battle(enemy, type):
 								if abtns[4].is_clicked(event.pos):
 									btnstate = "MAIN"
 					if btnstate != "MAIN" and move != "":
-						if moves[playerside[monnumber].moves[move]].targeting == "all":
+						if moves[move].targeting == "all":
 							usedmoves[monnumber] = ["use","all",move,playerside[monnumber]]
 							monnumber += 1
 							btnstate = "MAIN"
-						elif moves[playerside[monnumber].moves[move]].targeting == "both":
+						elif moves[move].targeting == "both":
 							usedmoves[monnumber] = ["use","both",move,playerside[monnumber]]
+							monnumber += 1
+							btnstate = "MAIN"
+						elif moves[move].targeting == "self":
+							usedmoves[monnumber] = ["use","self",move,playerside[monnumber]]
 							monnumber += 1
 							btnstate = "MAIN"
 						elif type == "doubles":
@@ -193,13 +204,15 @@ def battle(enemy, type):
 					monbtns = []
 					for i in range(len(current_game_state["mons"])):
 						if current_game_state["mons"][i] in playerside:
-							monbtns.append(btn(50 + 350 * (i % 2), 50 + 180 * ((i + 1) % 2), 300, 150, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (0,141,191)))
+							monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * ((i // 2) % 3), 335, 133, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (0,141,191)))
 						elif current_game_state["mons"][i].chp <= 0:
-							monbtns.append(btn(50 + 350 * (i % 2), 50 + 180 * ((i + 1) % 2), 300, 150, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (255,0,0)))
+							monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * ((i // 2) % 3), 335, 133, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (255,0,0)))
 						else:
-							monbtns.append(btn(50 + 350 * (i % 2), 50 + 180 * ((i + 1) % 2), 300, 150, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species))
+							monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * ((i // 2) % 3), 335, 133, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species))
 					for i in range(6 - len(monbtns)):
-						monbtns.append(btn(50 + 350 * (i % 2), 50 + 100 * ((i + len(monbtns) + 1) % 2),300,150,""))
+						monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * (((i + len(monbtns) + 1) // 2) % 3),335,133,""))
+					monbtns.append(btn(350,570,100,30,"back",(0,0,255)))
+					screen.blit(monbackground_image)
 					for b in monbtns:
 						b.draw(screen)
 					for event in pygame.event.get():
@@ -223,6 +236,8 @@ def battle(enemy, type):
 								elif monbtns[5].is_clicked(event.pos) and len(current_game_state["mons"]) > 5:
 									if monbtns[5] not in playerside and current_game_state["mons"][5].chp > 0:
 										playerside[monnumber] == current_game_state["mons"][5]
+								elif monbtns[6].is_clicked(event.pos):
+									btnstate = "MAIN"
 			movenumber += 0.01
 		else:
 			ecount = 0
@@ -339,13 +354,15 @@ def battle(enemy, type):
 				monbtns = []
 				for i in range(len(current_game_state["mons"])):
 					if current_game_state["mons"][i] in playerside:
-						monbtns.append(btn(20, 20 + 100 * i, 180, 80, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (0,141,191)))
+						monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * (((i + 1) // 2) % 3), 335, 133, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (0,141,191)))
 					elif current_game_state["mons"][i].chp <= 0:
-						monbtns.append(btn(20, 20 + 100 * i, 180, 80, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (255,0,0)))
+						monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * (((i + 1) // 2) % 3), 335, 133, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species, (255,0,0)))
 					else:
-						monbtns.append(btn(20, 20 + 100 * i, 180, 80, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species))
+						monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * (((i + 1) // 2) % 3), 335, 133, current_game_state["mons"][i].name + "," + current_game_state["mons"][i].species))
 				for i in range(6 - len(monbtns)):
-					monbtns.append(btn(20, 20 + 100 * (i + len(monbtns)),180,80,""))
+					monbtns.append(btn(40 + 385 * (i % 2), 40 + 183 * (((i + len(monbtns) + 1) // 2) % 3),335,133,""))
+				monbtns.append(btn(350,600,100,30,"back",(0,0,255)))
+				screen.blit(monbackground_image)
 				for b in monbtns:
 					b.draw(screen)
 				for event in pygame.event.get():
