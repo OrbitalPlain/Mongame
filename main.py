@@ -35,8 +35,6 @@ if debug: # makes sure the player has a mon before starter selection is complete
 	current_game_state["mons"].append(mon("Rattata","53",10,["Normal"],[0,0,0,0,0],30,["Tackle", "Earthquake", "", ""]))
 	current_game_state["mons"].append(mon("Rattata","ded",10,["Normal"],[0,0,0,0,0],0,["Tackle","Uturn", "", ""]))
 	current_game_state["mons"].append(mon("Hissuian Zoroark","Other boo",10,["Normal","Ghost"],[0,0,0,0,0], 55, ["Swordsdance","Uturn","Earthquake",""]))
-	for i in range(len(current_game_state["mons"])):
-		print(current_game_state["mons"][i].name)
 
 walls = [ # numbers are (starting coord), (ending coord), thickness
 	pymunk.Segment(space.static_body, (100, 100), (700, 100), 20 * screenmult)
@@ -94,18 +92,17 @@ def battle(enemy, type):
 	else:
 		lim = 1
 	usedmoves = [["","", 0, 0]] * len(playerside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
-	movenum = 0
-	movenumber = math.floor(movenum)
-	while True:
+	movenumber = 0
+	while True: # determine moves
 		screen.blit(battlebackground_image, (0,0))
 		if type == "doubles": # adds pokemon to area as needed
-			screen.blit(pygame.transform.scale(enemyside[0].species.front,(170,170)),(400,50))
-			screen.blit(pygame.transform.scale(enemyside[1].species.front,(170,170)),(520,100))
+			screen.blit(pygame.transform.scale(species[enemyside[0].species].front,(170,170)),(400,50))
+			screen.blit(pygame.transform.scale(species[enemyside[1].species].front,(170,170)),(520,100))
 			screen.blit(pygame.transform.scale(species[playerside[0].species].front,(225,225)),(210,350))
 			screen.blit(pygame.transform.scale(species[playerside[1].species].front,(225,225)),(330,400))
 		else:
 			screen.blit(species[playerside[0].species].front,(100,300))
-			screen.blit(enemyside[0].species.front,(500,50))
+			screen.blit(species[enemyside[0].species].front,(500,50))
 		if btnstate not in ["BAG", "MONS"]:
 			screen.blit(battleui_image,(0,0))
 		if monnumber < lim:
@@ -155,7 +152,7 @@ def battle(enemy, type):
 										move = playerside[monnumber].moves[3]
 								if abtns[4].is_clicked(event.pos):
 									btnstate = "MAIN"
-					if btnstate != "MAIN" and move != "":
+					if move != "":
 						if moves[move].targeting == "all":
 							usedmoves[monnumber] = ["use","all",move,playerside[monnumber]]
 							monnumber += 1
@@ -197,7 +194,7 @@ def battle(enemy, type):
 									usedmoves[monnumber] = ["use","enemy 2",move,playerside[monnumber]]
 								if tarbtns[2].is_clicked(event.pos):
 									usedmoves[monnumber] = ["use","ally",move,playerside[monnumber]]
-					if btnstate == "TARGET":
+					if usedmoves[monnumber] != ["", "", 0, 0]:
 						monnumber += 1
 						btnstate = "MAIN"
 				case "MONS":
@@ -216,30 +213,29 @@ def battle(enemy, type):
 					for b in monbtns:
 						b.draw(screen)
 					for event in pygame.event.get():
-						if event.type == pygame.MOUSEBUTTONDOWN:
+						if event.type == pygame.MOUSEBUTTONDOWN: # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
 							if event.button == 1:
 								if monbtns[0].is_clicked(event.pos) and len(current_game_state["mons"]) > 0:
 									if monbtns[0] not in playerside and current_game_state["mons"][0].chp > 0:
-										playerside[monnumber] == current_game_state["mons"][0]
+										usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][0], playerside[monnumber]]
 								elif monbtns[1].is_clicked(event.pos) and len(current_game_state["mons"]) > 1:
-										if monbtns[1] not in playerside and current_game_state["mons"][1].chp > 0:
-											playerside[monnumber] == current_game_state["mons"][1]
+									if monbtns[1] not in playerside and current_game_state["mons"][1].chp > 0:
+										usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][1], playerside[monnumber]]
 								elif monbtns[2].is_clicked(event.pos) and len(current_game_state["mons"]) > 2:
 									if monbtns[2] not in playerside and current_game_state["mons"][2].chp > 0:
-										playerside[monnumber] == current_game_state["mons"][2]
+										usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][2], playerside[monnumber]]
 								elif monbtns[3].is_clicked(event.pos) and len(current_game_state["mons"]) > 3:
 									if monbtns[3] not in playerside and current_game_state["mons"][3].chp > 0:
-										playerside[monnumber] == current_game_state["mons"][3]
+										usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][3], playerside[monnumber]]
 								elif monbtns[4].is_clicked(event.pos) and len(current_game_state["mons"]) > 4:
 									if monbtns[4] not in playerside and current_game_state["mons"][4].chp > 0:
-										playerside[monnumber] == current_game_state["mons"][4]
+										usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][4], playerside[monnumber]]
 								elif monbtns[5].is_clicked(event.pos) and len(current_game_state["mons"]) > 5:
 									if monbtns[5] not in playerside and current_game_state["mons"][5].chp > 0:
-										playerside[monnumber] == current_game_state["mons"][5]
+										usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][5], playerside[monnumber]]
 								elif monbtns[6].is_clicked(event.pos):
 									btnstate = "MAIN"
-			movenumber += 0.01
-		else:
+		else: # WHY IS THIS RUNNING SO MANY TIMES
 			ecount = 0
 			enemymoves = [["","",-1,0]] * len(enemyside) # the keyword (switch, use, etc), target (enemy slot 1, enemy slot 2, both, all), move (if use) or mon (if switch), user
 			for e in enemyside:
@@ -255,37 +251,39 @@ def battle(enemy, type):
 					else:
 						t = "both"
 				enemymoves[ecount] = ["use",t,m,e]
+				ecount += 1
 			# will code enemy AI later
 			movelist = []
 			for m in enemymoves + usedmoves:
+				print(m)
 				if len(movelist) == 0:
 					movelist.append(m)
 				else:
 					if m[0] == "switch":
 						movelist.insert(0,m)
 					for i in range(len(movelist)):
-						if m[2].priority > movelist[i][2].priority:
+						if moves[m[2]].priority > moves[movelist[i][2]].priority:
 							movelist.insert(i,m)
-						elif m[2].priority == movelist[i][2].proiority:
-							if m[3].speed > movelist[i][3].speed:
+						elif moves[m[2]].priority == moves[movelist[i][2]].priority:
+							if species[m[3].species].Speed > species[movelist[i][3].species].Speed:
 								movelist.insert(i,m)
-							elif m[3].speed == movelist[i][3].speed:
+							elif species[m[3].species].Speed == species[movelist[i][3].species].Speed:
 								if random.randint(1,2) == 1:
 									movelist.insert(i,m)
 								else:
 									movelist.insert(i + 1,m)
 						else:
-							if m[3].speed < movelist[i][3].speed:
+							if species[m[3].species].Speed < species[movelist[i][3].species].Speed:
 								if i == len(movelist) - 1:
 									movelist.append(m)
 			mv = movelist[movenumber]
 			movewait = False
 			if not movewait:
 				if mv[0] != "switch":
-					if mv[3].accuracy == "--":
+					if moves[mv[2]].accuracy == "--":
 						miss = False
 					else:
-						miss = mv[3].accuracy > random.random() * 100
+						miss = moves[mv[2]].accuracy > random.random() * 100
 				playside = mv in usedmoves
 				match mv[0]: # eventually add secondary effects
 					case "switch":
@@ -294,7 +292,7 @@ def battle(enemy, type):
 						else:
 							enemyside[enemyside.index(mv[3])] == mv[2]
 					case "use":
-						match mv[2].category:
+						match moves[mv[2]].category:
 							case "Physical" | "Special":
 								if not miss:
 									match mv[1]:
@@ -368,24 +366,25 @@ def battle(enemy, type):
 				for event in pygame.event.get():
 					if event.type == pygame.MOUSEBUTTONDOWN:
 						if event.button == 1:
-							if monbtns[0].is_clicked(event.pos):
+							if monbtns[0].is_clicked(event.pos) and len(current_game_state["mons"]) > 0:
 								if monbtns[0] not in playerside and current_game_state["mons"][0].chp > 0:
-									playerside[monnumber] == current_game_state["mons"][0]
-							elif monbtns[1].is_clicked(event.pos):
-									if monbtns[1] not in playerside and current_game_state["mons"][1].chp > 0:
-										playerside[monnumber] == current_game_state["mons"][1]
-							elif monbtns[2].is_clicked(event.pos):
+									usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][0], playerside[monnumber]]
+							elif monbtns[1].is_clicked(event.pos) and len(current_game_state["mons"]) > 1:
+								if monbtns[1] not in playerside and current_game_state["mons"][1].chp > 0:
+									usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][1], playerside[monnumber]]
+							elif monbtns[2].is_clicked(event.pos) and len(current_game_state["mons"]) > 2:
 								if monbtns[2] not in playerside and current_game_state["mons"][2].chp > 0:
-									playerside[monnumber] == current_game_state["mons"][2]
-							elif monbtns[3].is_clicked(event.pos):
+									usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][2], playerside[monnumber]]
+							elif monbtns[3].is_clicked(event.pos) and len(current_game_state["mons"]) > 3:
 								if monbtns[3] not in playerside and current_game_state["mons"][3].chp > 0:
-									playerside[monnumber] == current_game_state["mons"][3]
-							elif monbtns[4].is_clicked(event.pos):
+									usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][3], playerside[monnumber]]
+							elif monbtns[4].is_clicked(event.pos) and len(current_game_state["mons"]) > 4:
 								if monbtns[4] not in playerside and current_game_state["mons"][4].chp > 0:
-									playerside[monnumber] == current_game_state["mons"][4]
-							elif monbtns[5].is_clicked(event.pos):
+									usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][4], playerside[monnumber]]
+							elif monbtns[5].is_clicked(event.pos) and len(current_game_state["mons"]) > 5:
 								if monbtns[5] not in playerside and current_game_state["mons"][5].chp > 0:
-									playerside[monnumber] == current_game_state["mons"][5]
+									usedmoves[monnumber] = ["switch", "self", current_game_state["mons"][5], playerside[monnumber]]
+				movenumber += 1
 				if movenumber >= lim * 2:
 					movenumber = 0
 					monnumber = 0
@@ -454,10 +453,10 @@ def main():
 					version = "singles"
 					if random.random() < 0.750 and len(current_game_state["mons"]) > 1: # These movesets have not been defined
 						enemy = random.choice(spawnzones[current_bush.pool][0])
-						encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle"]))
+						encounter.append(mon(enemy, enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle"]))
 						version = "doubles"
 					enemy = random.choice(spawnzones[current_bush.pool][0])
-					encounter.append(mon(species[enemy], enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle"]))
+					encounter.append(mon(enemy, enemy, random.randint(spawnzones[current_bush.pool][1], spawnzones[current_bush.pool][2]), species[enemy].type, [0,0,0,0,0], species[enemy].mhp, ["Tackle"]))
 					state = "BATTLE"
 					safe = safenumber()
 			space.step(1 / FPS)
